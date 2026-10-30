@@ -1,0 +1,259 @@
+# Project 11 — Customer Segmentation from Transactions
+
+**Course:** EC-417 — Introduction to Machine Intelligence  
+**Institution:** National Institute of Technology Andhra Pradesh  
+**Project:** P11 — Customer Segmentation from Transactions  
+**Team:** Nikhil Karn and Sumanth  
+**Status:** In progress 
+
+## 1. Project summary
+
+This project uses unsupervised machine learning to identify groups of customers with similar purchasing behaviour from the UCI Online Retail dataset.
+
+The transaction-level data will be converted into customer-level **RFM features**:
+
+- **Recency:** How recently a customer made a purchase.
+- **Frequency:** How often a customer made purchases.
+- **Monetary:** How much a customer spent.
+
+We plan to use K-means as the baseline clustering model and Gaussian Mixture Model (GMM) as the required improvement. The resulting customer segments will be evaluated and interpreted using clustering metrics and customer profiles.
+
+## 2. Dataset
+
+- **Source:** [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online+retail)
+- **Description:** Transactions from a UK-based online retailer.
+- **Period:** December 2010 to December 2011.
+- **Original size:** 541,909 transaction records.
+- **Columns:** `InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `UnitPrice`, `CustomerID`, and `Country`.
+
+Download the Excel dataset separately and place it at:
+
+```text
+data/raw/Online_Retail.xlsx
+```
+
+The raw dataset is not intended to be committed to GitHub. The original file should remain unchanged; all exploration and cleaning should be performed on a working copy.
+
+## 3. Planned methodology
+
+The following is the planned project workflow. These stages are not all implemented yet.
+
+### 3.1 Data exploration and cleaning
+
+We will examine missing values, duplicate records, cancelled invoices, quantities, unit prices, returns, dates, and customer counts.
+
+The project specification requires:
+- Removing cancelled invoices (invoice numbers beginning with `C`).
+- Removing rows without `CustomerID`.
+
+Other data-cleaning decisions, especially how to handle returns and non-positive quantities or prices, will be made after inspecting the data and will be documented.
+
+### 3.2 RFM feature engineering
+
+We will aggregate transaction records to create one row per customer with:
+
+- **Recency:** Days between a documented reference date and the customer's last purchase.
+- **Frequency:** Number of distinct invoices for the customer.
+- **Monetary:** Total purchase value, based on quantity and unit price under the documented returns policy.
+
+`CustomerID` will be retained for identifying and profiling customers, but it will not be included as a clustering feature.
+
+### 3.3 Preprocessing
+
+RFM variables can be highly skewed. We plan to apply log transformation and standardisation before clustering. Preprocessing choices and fitted parameters will be documented to avoid data leakage.
+
+### 3.4 Baseline — K-means
+
+K-means will be used as the baseline. The number of clusters will be investigated using:
+
+- Elbow method (inertia).
+- Silhouette score.
+
+### 3.5 Improvement — Gaussian Mixture Model
+
+GMM will be implemented as the required improvement. The number of components and covariance type will be selected using Bayesian Information Criterion (BIC).
+
+### 3.6 Evaluation and interpretation
+
+The planned evaluation includes:
+
+- Silhouette score.
+- Davies–Bouldin index.
+- Stability across 10 random seeds using Adjusted Rand Index (ARI).
+- Customer count and RFM profile for each cluster.
+- PCA visualisation of customer segments.
+- Business-oriented segment names and short marketing recommendations.
+
+The final model comparison and segment interpretations will be based on measured results, not assumed in advance.
+
+## 4. Repository structure
+
+```text
+TermProject/
+│
+├── data/
+│   ├── raw/
+│   │   └── Online_Retail.xlsx
+│   └── processed/
+│       ├── cleaned_transactions.csv
+│       └── customer_rfm.csv
+│
+├── notebooks/
+│   ├── 01_dataExploration.ipynb
+│   ├── 02_dataCleaning.ipynb
+│   ├── 03_rfmAnalysis.ipynb
+│   ├── 04_preprocessing.ipynb
+│   ├── 05_kmeans.ipynb
+│   ├── 06_gmm.ipynb
+│   └── 07_evaluation.ipynb
+│
+├── src/
+│   ├── data.py
+│   ├── features.py
+│   ├── preprocessing.py
+│   ├── models.py
+│   └── evaluation.py
+│
+├── scripts/
+│   ├── get_data.py
+│   └── run_experiments.py
+│
+├── results/
+│   ├── figures/
+│   └── metrics.csv
+│
+├── report/
+│   └── report.pdf
+│
+├── .gitignore
+├── requirements.txt
+└── README.md
+```
+
+**Folder and file purposes:**
+
+| Path | Purpose |
+|---|---|
+| `data/raw/` | Original downloaded dataset. Keep unchanged and out of Git. |
+| `data/processed/` | Generated cleaned transactions and customer-level RFM data. |
+| `notebooks/` | Step-by-step exploration, experiments, plots, and explanations. |
+| `src/` | Reusable Python functions once the implementation becomes stable. |
+| `scripts/` | Scripts for obtaining data and running reproducible experiments. |
+| `results/figures/` | Plots generated by the experiments. |
+| `results/metrics.csv` | Recorded model metrics and experiment results. |
+| `report/` | Final project report. |
+| `requirements.txt` | Python package dependencies for the project. |
+| `.gitignore` | Files and folders that should not be committed. |
+
+The structure is a planned layout. Folders and files will be added as the corresponding work is implemented.
+
+## 5. Current progress — what has been done so far
+
+### Notebook: `notebooks/01_dataExploration.ipynb`
+
+The first notebook has been created and used to load and inspect the Online Retail Excel dataset.
+
+The initial exploration has included:
+
+- Loading the Excel file using pandas.
+- Inspecting the first few records with `head()`.
+- Checking dataset dimensions using `shape`.
+- Inspecting column names and data types using `columns` and `info()`.
+- Checking missing values.
+- Inspecting numerical summaries using `describe()`.
+- Beginning to investigate the data before deciding on cleaning rules.
+
+Initial observations from the exploration:
+
+- Original dataset contains **541,909 rows**.
+- `Description` has **1,454 missing values**.
+- `CustomerID` has **135,080 missing values**.
+- `Quantity` includes negative values (minimum observed: **-80,995**).
+- `UnitPrice` includes zero values (minimum observed: **0**).
+
+These are exploratory observations, not final cleaning decisions. Negative quantities may represent returns, so they must be investigated rather than automatically treated as invalid.
+
+### Important note for the next contributor
+
+Do not use a blanket `dropna()` on the entire original dataset as the final cleaning strategy. In particular, missing `CustomerID` rows need to be excluded for customer-level RFM, but missing descriptions do not necessarily make a transaction unusable.
+
+Keep the original data separate from the working copy:
+
+```python
+raw_data = pd.read_excel("../data/raw/Online_Retail.xlsx")
+data = raw_data.copy()
+```
+
+Use `raw_data` as the untouched reference and perform future analysis or cleaning on `data` or another explicitly named working DataFrame.
+
+**Not implemented yet:** final cleaning pipeline, RFM aggregation, preprocessing, K-means, GMM, model selection, evaluation, PCA, and segment interpretation.
+
+## 6. Installation and setup
+
+### Create a virtual environment
+
+From the repository root:
+
+**Windows PowerShell:**
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+**Windows Git Bash:**
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If the `py -3.14` command is unavailable, install Python 3.14 first or create the environment using the full path to the Python 3.14 executable.
+
+### Verify the environment
+
+Run:
+
+```bash
+python --version
+python -m pip --version
+```
+
+Both team members should verify that the intended virtual environment is active before installing packages or running notebooks.
+
+### Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+The `requirements.txt` file should be maintained by the team and updated when project dependencies are agreed. For reproducibility, pin the package versions after confirming that they work in the shared Python version.
+
+### Open the notebook
+
+Open the repository in VS Code, select the interpreter at `.venv` and select the corresponding Python environment as the notebook kernel. Run notebooks from the repository root or ensure relative data paths are correct.
+
+## 7. Working together on GitHub
+
+- `main` is the stable branch.
+- Each member should work on a separate feature branch.
+- Avoid editing the same notebook at the same time.
+- Commit small, meaningful changes and push them to GitHub.
+- Use pull requests to review and merge work into `main`.
+- Do not commit `.venv/`, raw datasets, secrets, or large generated files.
+
+Suggested initial branches:
+
+```text
+main
+feature/data-pipeline
+feature/clustering-models
+```
+
+---
+
+**Project status:** Initial EDA notebook created; data exploration started. The remaining pipeline and experiments are planned work.

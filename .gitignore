@@ -1,0 +1,58 @@
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Raw datasets
+data/raw/*
+!data/raw/.gitkeep
+
+# Generated datasets
+data/processed/
+
+
+# ML outputs and artifacts
+results/
+models/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+
+# Temporary files
+*.tmp
+*.bak
