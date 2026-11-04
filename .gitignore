@@ -41,7 +41,7 @@ data/raw/*
 !data/raw/.gitkeep
 
 # Generated datasets
-data/processed/
+data/Processed/
 
 
 # ML outputs and artifacts
