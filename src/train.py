@@ -115,6 +115,33 @@ def main():
     print(stability_results)
 
 
+    metrics_records = []
+
+
+    for _, row in comparison.iterrows():
+
+        metrics_records.append({"Model": row["Model"],"Seed": RANDOM_STATE,"Metric": "Silhouette Score","Value": row["Silhouette Score"]})
+
+        metrics_records.append({"Model": row["Model"],"Seed": RANDOM_STATE,"Metric": "Davies-Bouldin Index","Value": row["Davies-Bouldin Index"]})
+
+
+    # Stability metrics across 10 random seeds
+    for _, row in stability_results.iterrows():
+
+        metrics_records.append({"Model": row["Model"],"Seed": "0-9","Metric": "Mean ARI","Value": row["Mean ARI"]})
+
+        metrics_records.append({"Model": row["Model"],"Seed": "0-9","Metric": "ARI Standard Deviation","Value": row["ARI Std"]})
+
+
+    # Create and save consolidated metrics
+    metrics_df = pd.DataFrame(metrics_records)
+
+    metrics_df.to_csv(RESULTS_DIR / "metrics.csv",index=False)
+
+    print("\nConsolidated metrics saved:")
+    print(metrics_df)
+
+
     print("\n10. Generating customer profiles...")
 
     rfm_profile = rfm.copy()
