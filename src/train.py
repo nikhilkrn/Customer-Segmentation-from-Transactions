@@ -1,6 +1,7 @@
 
 from pathlib import Path
 import pandas as pd
+import joblib
 
 from .data import load_data, create_rfm, preprocess_rfm
 
@@ -12,12 +13,12 @@ from .evaluate import (compare_models,calculate_stability,profile_clusters)
 RANDOM_STATE = 42
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 DATA_PATH = BASE_DIR / "data" / "Processed" / "online_retail_cleaned.csv"
-
 RESULTS_DIR = BASE_DIR / "results"
-
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+MODEL_DIR = BASE_DIR / "models"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def main():
@@ -78,6 +79,13 @@ def main():
     print("K-Means training completed.")
     print("GMM training completed.")
     print("GMM converged:", gmm.converged_)
+
+    joblib.dump(kmeans, MODEL_DIR / "kmeans_model.joblib")
+    joblib.dump(gmm, MODEL_DIR / "gmm_model.joblib")
+
+    joblib.dump(preprocessing["scaler"],MODEL_DIR / "scaler.joblib")
+
+    print("\nTrained models and scaler saved successfully.")
 
     print("\n7. Predicting customer clusters...")
 
