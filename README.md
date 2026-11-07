@@ -1,198 +1,175 @@
-# Project 11 — Customer Segmentation from Transactions
+# Customer Segmentation from Transactions
 
 **Course:** EC-417 — Introduction to Machine Intelligence  
+**Project:** Project 11 — Customer Segmentation from Transactions  
 **Institution:** National Institute of Technology Andhra Pradesh  
-**Project:** P11 — Customer Segmentation from Transactions  
-**Team:** Nikhil Karn and Sumanth  
-**Status:** In progress 
+**Team:** Nikhil Karn and Sumanth
 
-## 1. Project summary
+## 1. Project overview
 
-This project uses unsupervised machine learning to identify groups of customers with similar purchasing behaviour from the UCI Online Retail dataset.
+This project applies unsupervised machine learning to the UCI Online Retail dataset to identify groups of customers with similar purchasing behaviour.
 
-The transaction-level data will be converted into customer-level **RFM features**:
+Transaction-level records are aggregated into customer-level Recency, Frequency and Monetary (RFM) features. K-Means is used as the baseline clustering method and a Gaussian Mixture Model (GMM) is evaluated as an alternative. The models are compared using internal clustering metrics and stability across different random initialisations.
 
-- **Recency:** How recently a customer made a purchase.
-- **Frequency:** How often a customer made purchases.
-- **Monetary:** How much a customer spent.
-
-We plan to use K-means as the baseline clustering model and Gaussian Mixture Model (GMM) as the required improvement. The resulting customer segments will be evaluated and interpreted using clustering metrics and customer profiles.
+The objective is to investigate whether the resulting groups provide interpretable customer profiles that could support differentiated marketing strategies. The clusters are exploratory groupings, not known or verified customer categories.
 
 ## 2. Dataset
 
-- **Source:** [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online+retail)
-- **Description:** Transactions from a UK-based online retailer.
-- **Period:** December 2010 to December 2011.
-- **Original size:** 541,909 transaction records.
-- **Columns:** `InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `UnitPrice`, `CustomerID`, and `Country`.
+The project uses the **Online Retail** dataset from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/352/online+retail).
 
-Download the Excel dataset separately and place it at:
+- **Dataset ID:** 352
+- **Original format:** Excel (`.xlsx`)
+- **Original records:** 541,909 transactions
+- **Period:** 1 December 2010 to 9 December 2011
+- **Fields:** `InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `UnitPrice`, `CustomerID`, and `Country`
 
-```text
-data/raw/Online_Retail.xlsx
+The original dataset is not committed to this repository. Download it using:
+
+```bash
+python scripts/get_data.py
 ```
 
-The raw dataset is not intended to be committed to GitHub. The original file should remain unchanged; all exploration and cleaning should be performed on a working copy.
+The script stores the Excel file at `data/raw/Online_Retail.xlsx`. See [`data/README.md`](data/README.md) for dataset details and handling notes.
 
-## 3. Planned methodology
+## 3. Data preparation and RFM features
 
-The following is the planned project workflow. These stages are not all implemented yet.
+The transaction data was cleaned before customer aggregation. The implemented cleaning steps are:
 
-### 3.1 Data exploration and cleaning
+1. Remove rows without a `CustomerID`.
+2. Remove cancelled invoices whose invoice number starts with `C`.
+3. Remove rows with non-positive `UnitPrice`.
+4. Remove rows with non-positive `Quantity`.
+5. Remove exact duplicate rows.
 
-We will examine missing values, duplicate records, cancelled invoices, quantities, unit prices, returns, dates, and customer counts.
+After these steps, the cleaned dataset contains **392,692 transactions and 4,338 unique customers**.
 
-The project specification requires:
-- Removing cancelled invoices (invoice numbers beginning with `C`).
-- Removing rows without `CustomerID`.
+Missing product descriptions are not, by themselves, a reason to remove a transaction. Negative quantities and cancelled invoices are excluded, so the Monetary feature represents the value of retained positive-purchase transactions; it is not net spending after returns and refunds.
 
-Other data-cleaning decisions, especially how to handle returns and non-positive quantities or prices, will be made after inspecting the data and will be documented.
+For each customer:
 
-### 3.2 RFM feature engineering
+- **Recency:** Number of days between the customer's most recent retained purchase and the reference date (one day after the latest transaction in the dataset).
+- **Frequency:** Number of distinct invoices associated with the customer.
+- **Monetary:** Sum of `Quantity × UnitPrice` for the customer's retained transactions, in pounds sterling.
 
-We will aggregate transaction records to create one row per customer with:
+The RFM features are right-skewed. The modelling workflow applies `log1p` to the three features and standardises them. The customer records are split into training and test sets (80:20, random state 42). The scaler is fitted on the training set only and then applied to the test set.
 
-- **Recency:** Days between a documented reference date and the customer's last purchase.
-- **Frequency:** Number of distinct invoices for the customer.
-- **Monetary:** Total purchase value, based on quantity and unit price under the documented returns policy.
+## 4. Methods
 
-`CustomerID` will be retained for identifying and profiling customers, but it will not be included as a clustering feature.
+### K-Means baseline
 
-### 3.3 Preprocessing
+K-Means was evaluated for cluster counts from 2 to 10. Inertia (for the elbow method) and silhouette score were examined. The selected baseline uses **K=2**.
 
-RFM variables can be highly skewed. We plan to apply log transformation and standardisation before clustering. Preprocessing choices and fitted parameters will be documented to avoid data leakage.
+### Gaussian Mixture Model
 
-### 3.4 Baseline — K-means
+GMM configurations with 2–10 components and `full`, `tied`, `diag`, and `spherical` covariance types were compared using Bayesian Information Criterion (BIC). The selected configuration was **10 components with full covariance**.
 
-K-means will be used as the baseline. The number of clusters will be investigated using:
+A lower BIC selects a configuration among the GMM candidates; it does not by itself show that GMM produces better customer segments than K-Means.
 
-- Elbow method (inertia).
-- Silhouette score.
+### Evaluation
 
-### 3.5 Improvement — Gaussian Mixture Model
+The selected models were evaluated on the same held-out test customers using:
 
-GMM will be implemented as the required improvement. The number of components and covariance type will be selected using Bayesian Information Criterion (BIC).
+- **Silhouette score:** higher values generally indicate better separation and cohesion.
+- **Davies–Bouldin index:** lower values generally indicate more compact and separated clusters.
+- **Adjusted Rand Index (ARI):** used to compare cluster assignments across 10 random initialisations on the training data. The mean and standard deviation of pairwise ARI values are reported as a measure of run-to-run stability.
 
-### 3.6 Evaluation and interpretation
+## 5. Results
 
-The planned evaluation includes:
+The current recorded held-out test results are:
 
-- Silhouette score.
-- Davies–Bouldin index.
-- Stability across 10 random seeds using Adjusted Rand Index (ARI).
-- Customer count and RFM profile for each cluster.
-- PCA visualisation of customer segments.
-- Business-oriented segment names and short marketing recommendations.
+| Model | Configuration | Silhouette score | Davies–Bouldin index |
+|---|---|---:|---:|
+| K-Means | K=2 | 0.4331 | 0.8937 |
+| GMM | 10 components, full covariance | 0.0842 | 2.3906 |
 
-The final model comparison and segment interpretations will be based on measured results, not assumed in advance.
+Stability across 10 random seeds:
 
-## 4. Repository structure
+| Model | Mean pairwise ARI | ARI standard deviation |
+|---|---:|---:|
+| K-Means | 1.0000 | 0.0000 |
+| GMM | 0.8941 | 0.0571 |
+
+On the held-out test set, K-Means has a higher silhouette score and a lower Davies–Bouldin index than GMM. K-Means was also more stable across the tested random initialisations. Therefore, K-Means is used for the customer segment profiles discussed in this project.
+
+These results are internal clustering measures; they do not establish that the segments improve revenue or marketing outcomes. The ten-seed ARI analysis measures stability of assignments on the training data, not ten independent held-out test evaluations.
+
+### Customer profiles
+
+The K-Means customer profiles are:
+
+| Segment | Customers | Mean recency (days) | Mean frequency (invoices) | Mean monetary (£) |
+|---|---:|---:|---:|---:|
+| Cluster 0 | 1,671 | 26.05 | 8.43 | 4,529.87 |
+| Cluster 1 | 2,667 | 134.19 | 1.67 | 494.11 |
+
+- **Cluster 0 — Recently active, higher-value customers:** these customers purchased more recently, placed more distinct invoices, and had higher retained purchase value on average.
+- **Cluster 1 — Less recent, lower-frequency customers:** these customers had a longer time since their last purchase, fewer invoices, and lower retained purchase value on average.
+
+### Potential marketing actions
+
+The following are hypotheses suggested by the profiles, not experimentally validated outcomes:
+
+- **Cluster 0:** consider loyalty rewards, early access, personalised recommendations, and retention-focused communication.
+- **Cluster 1:** consider carefully targeted re-engagement campaigns, relevant product recommendations, and incentives for a repeat purchase.
+
+Any campaign should be evaluated before claiming that it improves business performance.
+
+## 6. Visualisation
+
+The project uses Principal Component Analysis (PCA) to project the three standardised RFM features into two dimensions for visual inspection of the K-Means clusters. The first two components explain approximately **93.85%** of the variance in the transformed feature space (PC1: 75.11%; PC2: 18.74%).
+
+The PCA scatter plot is a visual summary; it does not replace the quantitative evaluation metrics.
+
+The generated figure is stored in `results/figures/kmeans_pca_clusters.png`.
+
+## 7. Repository structure
 
 ```text
 TermProject/
-│
 ├── data/
-│   ├── raw/
-│   │   └── Online_Retail.xlsx
-│   └── processed/
-│       ├── cleaned_transactions.csv
-│       └── customer_rfm.csv
-│
+│   ├── raw/                     # Downloaded source data (not committed)
+│   ├── processed/               # Cleaned transaction data
+│   └── README.md
 ├── notebooks/
 │   ├── 01_dataExploration.ipynb
-│   ├── 02_dataCleaning.ipynb
-│   ├── 03_rfmAnalysis.ipynb
-│   ├── 04_preprocessing.ipynb
-│   ├── 05_kmeans.ipynb
-│   ├── 06_gmm.ipynb
-│   └── 07_evaluation.ipynb
-│
-├── src/
-│   ├── data.py
-│   ├── features.py
-│   ├── preprocessing.py
-│   ├── models.py
-│   └── evaluation.py
-│
-├── scripts/
-│   ├── get_data.py
-│   └── run_experiments.py
-│
+│   ├── 02_rfm_analysis.ipynb
+│   └── 03_customer_segmentation.ipynb
 ├── results/
 │   ├── figures/
+│   ├── customer_rfm.csv
+│   ├── customer_segments.csv
+│   ├── cluster_profiles.csv
+│   ├── kmeans_selection.csv
+│   ├── gmm_selection.csv
+│   ├── model_comparison.csv
+│   ├── stability_results.csv
 │   └── metrics.csv
-│
-├── report/
-│   └── report.pdf
-│
+├── scripts/
+│   └── get_data.py
+├── src/
+│   ├── __init__.py
+│   ├── data.py
+│   ├── models.py
+│   ├── evaluate.py
+│   └── train.py
 ├── .gitignore
-├── requirements.txt
-└── README.md
+├── LICENSE
+├── README.md
+└── requirements.txt
 ```
 
-**Folder and file purposes:**
+Some generated files may appear only after running the relevant notebook or pipeline. Do not commit the raw dataset, virtual environment, or serialized model checkpoints.
 
-| Path | Purpose |
-|---|---|
-| `data/raw/` | Original downloaded dataset. Keep unchanged and out of Git. |
-| `data/processed/` | Generated cleaned transactions and customer-level RFM data. |
-| `notebooks/` | Step-by-step exploration, experiments, plots, and explanations. |
-| `src/` | Reusable Python functions once the implementation becomes stable. |
-| `scripts/` | Scripts for obtaining data and running reproducible experiments. |
-| `results/figures/` | Plots generated by the experiments. |
-| `results/metrics.csv` | Recorded model metrics and experiment results. |
-| `report/` | Final project report. |
-| `requirements.txt` | Python package dependencies for the project. |
-| `.gitignore` | Files and folders that should not be committed. |
+## 8. Installation and execution
 
-The structure is a planned layout. Folders and files will be added as the corresponding work is implemented.
+### Requirements
 
-## 5. Current progress — what has been done so far
+- Python version compatible with the pinned packages in `requirements.txt`.
+- Git.
+- Internet access to download the UCI dataset.
+- A terminal, and optionally VS Code/Jupyter to run the notebooks.
 
-### Notebook: `notebooks/01_dataExploration.ipynb`
-
-The first notebook has been created and used to load and inspect the Online Retail Excel dataset.
-
-The initial exploration has included:
-
-- Loading the Excel file using pandas.
-- Inspecting the first few records with `head()`.
-- Checking dataset dimensions using `shape`.
-- Inspecting column names and data types using `columns` and `info()`.
-- Checking missing values.
-- Inspecting numerical summaries using `describe()`.
-- Beginning to investigate the data before deciding on cleaning rules.
-
-Initial observations from the exploration:
-
-- Original dataset contains **541,909 rows**.
-- `Description` has **1,454 missing values**.
-- `CustomerID` has **135,080 missing values**.
-- `Quantity` includes negative values (minimum observed: **-80,995**).
-- `UnitPrice` includes zero values (minimum observed: **0**).
-
-These are exploratory observations, not final cleaning decisions. Negative quantities may represent returns, so they must be investigated rather than automatically treated as invalid.
-
-### Important note for the next contributor
-
-Do not use a blanket `dropna()` on the entire original dataset as the final cleaning strategy. In particular, missing `CustomerID` rows need to be excluded for customer-level RFM, but missing descriptions do not necessarily make a transaction unusable.
-
-Keep the original data separate from the working copy:
-
-```python
-raw_data = pd.read_excel("../data/raw/Online_Retail.xlsx")
-data = raw_data.copy()
-```
-
-Use `raw_data` as the untouched reference and perform future analysis or cleaning on `data` or another explicitly named working DataFrame.
-
-**Not implemented yet:** final cleaning pipeline, RFM aggregation, preprocessing, K-means, GMM, model selection, evaluation, PCA, and segment interpretation.
-
-## 6. Installation and setup
-
-### Create a virtual environment
-
-From the repository root:
+### Create and activate a virtual environment
 
 **Windows PowerShell:**
 
@@ -200,7 +177,7 @@ From the repository root:
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 **Windows Git Bash:**
@@ -209,51 +186,53 @@ pip install -r requirements.txt
 python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-If the `py -3.14` command is unavailable, install Python 3.14 first or create the environment using the full path to the Python 3.14 executable.
+### Obtain the dataset
 
-### Verify the environment
-
-Run:
+From the repository root:
 
 ```bash
-python --version
-python -m pip --version
+python scripts/get_data.py
 ```
 
-Both team members should verify that the intended virtual environment is active before installing packages or running notebooks.
+This downloads the original Excel file to `data/raw/Online_Retail.xlsx`.
 
-### Install dependencies
+### Run the notebooks
 
-```bash
-pip install -r requirements.txt
-```
+The notebooks document the exploratory and analytical workflow. Run them from top to bottom in this order:
 
-The `requirements.txt` file should be maintained by the team and updated when project dependencies are agreed. For reproducibility, pin the package versions after confirming that they work in the shared Python version.
+1. `notebooks/01_dataExploration.ipynb`
+2. `notebooks/02_rfm_analysis.ipynb`
+3. `notebooks/03_customer_segmentation.ipynb`
 
-### Open the notebook
+The first notebook creates the cleaned transaction dataset, and the second creates the customer-level RFM dataset used by the segmentation analysis.
 
-Open the repository in VS Code, select the interpreter at `.venv` and select the corresponding Python environment as the notebook kernel. Run notebooks from the repository root or ensure relative data paths are correct.
+### Run the Python training pipeline
 
-## 7. Working together on GitHub
-
-- `main` is the stable branch.
-- Each member should work on a separate feature branch.
-- Avoid editing the same notebook at the same time.
-- Commit small, meaningful changes and push them to GitHub.
-- Use pull requests to review and merge work into `main`.
-- Do not commit `.venv/`, raw datasets, secrets, or large generated files.
-
-Suggested initial branches:
+The current `src/train.py` expects the cleaned transaction CSV at:
 
 ```text
-main
-feature/data-pipeline
-feature/clustering-models
+data/processed/online_retail_cleaned.csv
 ```
+
+After generating that file through the data-cleaning notebook, run the pipeline from the repository root:
+
+```bash
+python -m src.train
+```
+
+The pipeline writes the model-selection tables, evaluation results, customer profiles, and related CSV outputs to `results/`.
+
+**Reproducibility note:** the notebook-based cleaning step is currently required before running `python -m src.train`. A single command that downloads raw data, performs cleaning, trains the models, and regenerates every result has not yet been verified. Do not treat the workflow as a fully fresh-clone, one-command pipeline until that integration has been implemented and tested.
+
+
+
+## 9. AI-use statement
+
+AI assistance was used as a support tool during the project for clarifying machine-learning concepts, discussing implementation approaches, troubleshooting selected errors, and reviewing parts of the code and documentation. It also helped draft or refine some code sections and explanatory text.
 
 ---
 
-**Project status:** Initial EDA notebook created; data exploration started. The remaining pipeline and experiments are planned work.
+**Project status:** Core RFM segmentation and model comparison have been implemented and executed. Repository integration, documentation, report, presentation, and final clean-clone verification should be completed before submission.
